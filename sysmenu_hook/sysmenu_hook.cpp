@@ -1,4 +1,4 @@
-#include <windows.h>
+#include <Windows.h>
 #include "sysmenu_hook.h"
 
 static WNDPROC g_originalWndProc = nullptr;

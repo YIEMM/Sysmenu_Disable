@@ -6,6 +6,9 @@ static bool g_disableSystemMenu = true;
 static HWND g_hookedWindow = nullptr;
 static DWORD g_currentPid = 0;
 static bool g_allowCaptionOperation = false;
+static bool g_buttonPending = false;
+static UINT g_buttonTimerId = 0;
+static UINT g_buttonArea = 0;
 
 struct EnumWindowsData {
     DWORD pid;
@@ -34,6 +37,27 @@ HWND FindMainWindow(DWORD pid) {
     EnumWindowsData data = { pid, nullptr };
     EnumWindows(FindMainWindowCallback, reinterpret_cast<LPARAM>(&data));
     return data.hwnd;
+}
+
+#define BUTTON_TIMER_ID 1001
+#define BUTTON_CLICK_THRESHOLD 250
+
+static void ExecuteButtonAction(HWND hwnd, UINT hitTest) {
+    switch (hitTest) {
+        case HTMINBUTTON:
+            ShowWindow(hwnd, SW_MINIMIZE);
+            break;
+        case HTMAXBUTTON:
+            if (IsZoomed(hwnd)) {
+                ShowWindow(hwnd, SW_RESTORE);
+            } else {
+                ShowWindow(hwnd, SW_MAXIMIZE);
+            }
+            break;
+        case HTCLOSE:
+            PostMessage(hwnd, WM_CLOSE, 0, 0);
+            break;
+    }
 }
 
 static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -76,6 +100,43 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 return 0;
             }
         }
+
+        if (msg == WM_NCLBUTTONDOWN) {
+            if (wParam == HTMINBUTTON || wParam == HTMAXBUTTON || wParam == HTCLOSE) {
+                g_buttonPending = true;
+                g_buttonArea = (UINT)wParam;
+                g_buttonTimerId = SetTimer(hwnd, BUTTON_TIMER_ID, BUTTON_CLICK_THRESHOLD, nullptr);
+                return 0;
+            }
+        }
+        
+        if (msg == WM_NCLBUTTONUP) {
+            if (g_buttonPending && wParam == g_buttonArea) {
+                KillTimer(hwnd, g_buttonTimerId);
+                g_buttonTimerId = 0;
+                g_buttonPending = false;
+                ExecuteButtonAction(hwnd, g_buttonArea);
+                g_buttonArea = 0;
+                return 0;
+            }
+        }
+        
+        if (msg == WM_TIMER && wParam == BUTTON_TIMER_ID) {
+            KillTimer(hwnd, g_buttonTimerId);
+            g_buttonTimerId = 0;
+            g_buttonPending = false;
+            g_buttonArea = 0;
+            return 0;
+        }
+        
+        if (msg == WM_NCMOUSEMOVE && g_buttonPending) {
+            if (wParam != g_buttonArea) {
+                KillTimer(hwnd, g_buttonTimerId);
+                g_buttonTimerId = 0;
+                g_buttonPending = false;
+                g_buttonArea = 0;
+            }
+        }
     }
     
     return CallWindowProc(g_originalWndProc, hwnd, msg, wParam, lParam);
@@ -95,6 +156,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
             break;
         case DLL_PROCESS_DETACH:
             if (g_hookedWindow && g_originalWndProc) {
+                if (g_buttonTimerId) {
+                    KillTimer(g_hookedWindow, g_buttonTimerId);
+                    g_buttonTimerId = 0;
+                }
                 SetWindowLongPtr(g_hookedWindow, GWLP_WNDPROC, (LONG_PTR)g_originalWndProc);
             }
             break;

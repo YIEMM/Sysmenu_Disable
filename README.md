@@ -7,7 +7,7 @@
 ## 项目结构
 
 ```
-winform_block/
+Sysmenu_Disable/
 ├── injector/          # DLL 注入器（控制台应用程序）
 │   ├── injector.cpp
 │   └── injector.vcxproj
@@ -22,7 +22,7 @@ winform_block/
 │   └── x64/
 │       ├── Debug/
 │       └── Release/
-└── winform_block.sln  # Visual Studio 解决方案文件
+└── Sysmenu_Disable.sln  # Visual Studio 解决方案文件
 ```
 
 ## 功能说明
@@ -33,6 +33,7 @@ winform_block/
 - 自动检测进程架构（x86/x64）
 - 架构匹配验证，确保注入器与目标进程架构一致
 - 支持多目标进程列表显示
+- **支持相对路径**：可以使用相对路径指定 DLL 文件
 
 ### SysMenu Hook（系统菜单钩子_防止标题栏导致窗口阻塞）
 
@@ -41,6 +42,7 @@ DLL 被注入后会自动执行以下操作：
 1. **禁用系统菜单**：阻止用户通过右键点击窗口标题栏访问系统菜单
 2. **禁用标题栏操作**：默认情况下禁止通过点击标题栏移动窗口
 3. **Tab 键切换模式**：按下 Tab 键可以临时启用标题栏操作（允许移动窗口）
+4. **防止长按阻塞**：长按标题栏按钮（最小化/最大化/关闭）不会导致程序阻塞
 
 ## 编译说明
 
@@ -52,7 +54,7 @@ DLL 被注入后会自动执行以下操作：
 
 ### 编译步骤
 
-1. 使用 Visual Studio 打开 `winform_block.sln`
+1. 使用 Visual Studio 打开 `Sysmenu_Disable.sln`
 2. 选择目标配置：
    - **Debug/Release**：调试/发布版本
    - **Win32/x64**：32位/64位架构
@@ -80,13 +82,13 @@ bin/
 
 ```powershell
 # 编译 32 位 Release 版本
-msbuild winform_block.sln /p:Configuration=Release /p:Platform=Win32
+msbuild Sysmenu_Disable.sln /p:Configuration=Release /p:Platform=Win32
 
 # 编译 64 位 Release 版本
-msbuild winform_block.sln /p:Configuration=Release /p:Platform=x64
+msbuild Sysmenu_Disable.sln /p:Configuration=Release /p:Platform=x64
 
 # 编译 Debug 版本
-msbuild winform_block.sln /p:Configuration=Debug /p:Platform=x64
+msbuild Sysmenu_Disable.sln /p:Configuration=Debug /p:Platform=x64
 ```
 
 ## 使用说明
@@ -110,21 +112,36 @@ injector.exe [选项] <DLL路径>
 #### 1. 按进程名注入
 
 ```bash
-# 注入到记事本进程
+# 注入到记事本进程（32位）
 injector.exe -p notepad.exe bin\x86\Release\sysmenu_hook.dll
 
-# 注入到任意包含 "chrome" 的进程
+# 注入到记事本进程（64位）
+injector.exe -p notepad.exe bin\x64\Release\sysmenu_hook.dll
+
+# 注入到任意包含 "chrome" 的进程（64位）
 injector.exe -p chrome bin\x64\Release\sysmenu_hook.dll
 ```
 
 #### 2. 按窗口标题注入
 
 ```bash
-# 注入到标题包含"记事本"的窗口
+# 注入到标题包含"记事本"的窗口（32位）
 injector.exe -w "记事本" bin\x86\Release\sysmenu_hook.dll
 
-# 注入到标题包含"无标题"的窗口
+# 注入到标题包含"无标题"的窗口（64位）
 injector.exe -w "无标题" bin\x64\Release\sysmenu_hook.dll
+```
+
+#### 3. 使用相对路径
+
+```bash
+# 相对路径示例（32位）
+injector.exe -p notepad.exe .\sysmenu_hook.dll
+injector.exe -p notepad.exe ..\bin\x86\Release\sysmenu_hook.dll
+
+# 相对路径示例（64位）
+injector.exe -p notepad.exe .\sysmenu_hook.dll
+injector.exe -p notepad.exe ..\bin\x64\Release\sysmenu_hook.dll
 ```
 
 ### 使用注意事项
@@ -133,8 +150,8 @@ injector.exe -w "无标题" bin\x64\Release\sysmenu_hook.dll
 
 **重要**：注入器的架构必须与目标进程的架构匹配！
 
-- 如果目标进程是 32 位程序，必须使用 `bin\x86\Release\injector.exe`
-- 如果目标进程是 64 位程序，必须使用 `bin\x64\Release\injector.exe`
+- 如果目标进程是 32 位程序，必须使用 `bin\x86\Release\injector.exe` 和 `bin\x86\Release\sysmenu_hook.dll`
+- 如果目标进程是 64 位程序，必须使用 `bin\x64\Release\injector.exe` 和 `bin\x64\Release\sysmenu_hook.dll`
 
 注入器会自动检测并提示架构是否匹配：
 
@@ -151,11 +168,17 @@ injector.exe -w "无标题" bin\x64\Release\sysmenu_hook.dll
 DLL 路径可以是绝对路径或相对路径：
 
 ```bash
-# 绝对路径
+# 绝对路径（32位）
 injector.exe -p notepad.exe C:\path\to\sysmenu_hook.dll
 
-# 相对路径（相对于当前工作目录）
+# 相对路径（相对于当前工作目录）（32位）
 injector.exe -p notepad.exe .\bin\x86\Release\sysmenu_hook.dll
+
+# 绝对路径（64位）
+injector.exe -p notepad.exe C:\path\to\sysmenu_hook.dll
+
+# 相对路径（相对于当前工作目录）（64位）
+injector.exe -p notepad.exe .\bin\x64\Release\sysmenu_hook.dll
 ```
 
 #### 多进程处理
@@ -188,7 +211,12 @@ injector.exe -p notepad.exe .\bin\x86\Release\sysmenu_hook.dll
      - Tab 键按下：启用标题栏操作（允许移动窗口）
      - 再次按下 Tab 键：禁用标题栏操作
 
-3. **自动初始化**
+3. **防止长按阻塞**
+   - 长按标题栏按钮（最小化/最大化/关闭）不会导致程序阻塞
+   - 单击按钮仍然可以正常执行对应操作
+   - 长按超过 250ms 会自动取消操作
+
+4. **自动初始化**
    - DLL 加载时会自动查找当前进程的主窗口
    - 自动安装窗口过程钩子
    - 进程退出时自动清理
@@ -212,4 +240,5 @@ injector.exe -p notepad.exe .\bin\x86\Release\sysmenu_hook.dll
 | 架构不匹配 | 注入器与目标进程架构不同 | 使用对应架构的注入器 |
 | 无法打开进程 | 权限不足 | 以管理员身份运行 |
 | LoadLibraryA 返回 NULL | DLL 加载失败 | 检查 DLL 依赖项和路径 |
-
+| 无法解析 DLL 路径 | 路径无效 | 检查路径是否正确，支持相对路径 |
+| DLL 文件不存在 | 文件不存在 | 确认 DLL 文件路径正确 |

@@ -7,12 +7,14 @@
 
 #pragma comment(lib, "psapi.lib")
 
+// 进程信息结构
 struct ProcessInfo {
-    DWORD pid;
-    std::string name;
-    std::string title;
+    DWORD pid;      // 进程ID
+    std::string name;   // 进程名称
+    std::string title;  // 窗口标题
 };
 
+// 枚举窗口回调函数
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     std::vector<ProcessInfo>* processes = reinterpret_cast<std::vector<ProcessInfo>*>(lParam);
     
@@ -48,6 +50,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
+// 查找匹配的进程
 std::vector<ProcessInfo> FindProcesses(const std::string& processName, const std::string& windowTitle) {
     std::vector<ProcessInfo> processes;
     EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&processes));
@@ -76,6 +79,7 @@ std::vector<ProcessInfo> FindProcesses(const std::string& processName, const std
     return filtered;
 }
 
+// 检查进程是否为32位
 bool IsProcessWow64(DWORD pid) {
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (hProcess == NULL) {
@@ -89,12 +93,14 @@ bool IsProcessWow64(DWORD pid) {
     return isWow64 == TRUE;
 }
 
+// 检查注入器是否为32位
 bool IsInjectorWow64() {
     BOOL isWow64 = FALSE;
     IsWow64Process(GetCurrentProcess(), &isWow64);
     return isWow64 == TRUE;
 }
 
+// 注入DLL到目标进程
 bool InjectDLL(DWORD pid, const std::string& dllPath) {
     HANDLE hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
     if (hProcess == NULL) {
@@ -158,6 +164,7 @@ bool InjectDLL(DWORD pid, const std::string& dllPath) {
     return true;
 }
 
+// 打印使用说明
 void PrintUsage() {
     std::cout << "用法: injector.exe [选项] <DLL路径>" << std::endl;
     std::cout << "选项:" << std::endl;
@@ -170,6 +177,7 @@ void PrintUsage() {
     std::cout << "  injector.exe -w \"记事本\" C:\\path\\to\\hook.dll" << std::endl;
 }
 
+// 主函数
 int main(int argc, char* argv[]) {
     SetConsoleOutputCP(65001);
     SetConsoleCP(65001);
@@ -208,6 +216,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // 转换为绝对路径
     char absPath[MAX_PATH];
     if (GetFullPathNameA(dllPath.c_str(), MAX_PATH, absPath, NULL) == 0) {
         std::cerr << "[错误] 无法解析 DLL 路径: " << GetLastError() << std::endl;
@@ -215,6 +224,7 @@ int main(int argc, char* argv[]) {
     }
     dllPath = absPath;
 
+    // 检查文件是否存在
     if (GetFileAttributesA(dllPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
         std::cerr << "[错误] DLL 文件不存在: " << dllPath << std::endl;
         return 1;

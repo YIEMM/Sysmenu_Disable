@@ -7,7 +7,7 @@ English | [中文](README.md)
 ## Project Structure
 
 ```
-winform_block/
+Sysmenu_Disable/
 ├── injector/          # DLL injector (console application)
 │   ├── injector.cpp
 │   └── injector.vcxproj
@@ -21,7 +21,7 @@ winform_block/
 │   │   └── Release/
 │   └── x64/
 │       ├── Debug/
-│   └── Release/
+│       └── Release/
 └── Sysmenu_Disable.sln  # Visual Studio solution file
 ```
 
@@ -33,6 +33,7 @@ winform_block/
 - Automatic process architecture detection (x86/x64)
 - Architecture validation to ensure injector matches target process
 - Support for multiple target process listing
+- **Support for relative paths**: Can use relative paths to specify DLL files
 
 ### SysMenu Hook (System Menu Hook DLL - Prevent Window Blocking via Title Bar)
 
@@ -41,6 +42,7 @@ After DLL injection, it automatically performs the following operations:
 1. **Disable System Menu**: Prevents users from accessing the system menu by right-clicking on the window title bar
 2. **Disable Title Bar Operations**: By default, prevents window movement through title bar clicks
 3. **Tab Key Toggle Mode**: Press Tab key to temporarily enable title bar operations (allows window movement)
+4. **Prevent long-press blocking**: Long-pressing title bar buttons (minimize/maximize/close) won't cause program blocking
 
 ## Build Instructions
 
@@ -110,21 +112,36 @@ injector.exe [options] <DLL_path>
 #### 1. Inject by Process Name
 
 ```bash
-# Inject into Notepad process
+# Inject into Notepad process (32-bit)
 injector.exe -p notepad.exe bin\x86\Release\sysmenu_hook.dll
 
-# Inject into any process containing "chrome"
+# Inject into Notepad process (64-bit)
+injector.exe -p notepad.exe bin\x64\Release\sysmenu_hook.dll
+
+# Inject into any process containing "chrome" (64-bit)
 injector.exe -p chrome bin\x64\Release\sysmenu_hook.dll
 ```
 
 #### 2. Inject by Window Title
 
 ```bash
-# Inject into window with title containing "Notepad"
+# Inject into window with title containing "Notepad" (32-bit)
 injector.exe -w "记事本" bin\x86\Release\sysmenu_hook.dll
 
-# Inject into window with title containing "Untitled"
+# Inject into window with title containing "Untitled" (64-bit)
 injector.exe -w "无标题" bin\x64\Release\sysmenu_hook.dll
+```
+
+#### 3. Using Relative Paths
+
+```bash
+# Relative path examples (32-bit)
+injector.exe -p notepad.exe .\sysmenu_hook.dll
+injector.exe -p notepad.exe ..\bin\x86\Release\sysmenu_hook.dll
+
+# Relative path examples (64-bit)
+injector.exe -p notepad.exe .\sysmenu_hook.dll
+injector.exe -p notepad.exe ..\bin\x64\Release\sysmenu_hook.dll
 ```
 
 ### Usage Notes
@@ -133,8 +150,8 @@ injector.exe -w "无标题" bin\x64\Release\sysmenu_hook.dll
 
 **IMPORTANT**: The injector architecture must match the target process architecture!
 
-- If target process is 32-bit, use `bin\x86\Release\injector.exe`
-- If target process is 64-bit, use `bin\x64\Release\injector.exe`
+- If target process is 32-bit, use `bin\x86\Release\injector.exe` and `bin\x86\Release\sysmenu_hook.dll`
+- If target process is 64-bit, use `bin\x64\Release\injector.exe` and `bin\x64\Release\sysmenu_hook.dll`
 
 The injector will automatically detect and prompt if architecture matches:
 
@@ -151,11 +168,17 @@ The injector will automatically detect and prompt if architecture matches:
 DLL path can be absolute or relative:
 
 ```bash
-# Absolute path
+# Absolute path (32-bit)
 injector.exe -p notepad.exe C:\path\to\sysmenu_hook.dll
 
-# Relative path (relative to current working directory)
+# Relative path (relative to current working directory) (32-bit)
 injector.exe -p notepad.exe .\bin\x86\Release\sysmenu_hook.dll
+
+# Absolute path (64-bit)
+injector.exe -p notepad.exe C:\path\to\sysmenu_hook.dll
+
+# Relative path (relative to current working directory) (64-bit)
+injector.exe -p notepad.exe .\bin\x64\Release\sysmenu_hook.dll
 ```
 
 #### Multiple Process Handling
@@ -188,7 +211,12 @@ After successful DLL injection:
      - Tab key pressed: Enable title bar operations (allows window movement)
      - Press Tab key again: Disable title bar operations
 
-3. **Automatic Initialization**
+3. **Prevent Long-Press Blocking**
+   - Long-pressing title bar buttons (minimize/maximize/close) won't cause program blocking
+   - Single-clicking buttons still works normally
+   - Long-press exceeding 250ms will automatically cancel the operation
+
+4. **Automatic Initialization**
    - DLL automatically finds the main window of the current process when loaded
    - Automatically installs window procedure hook
    - Automatically cleans up when process exits
@@ -212,6 +240,8 @@ If injection fails, check:
 | Architecture mismatch | Injector and target process have different architectures | Use injector with corresponding architecture |
 | Cannot open process | Insufficient permissions | Run as administrator |
 | LoadLibraryA returns NULL | DLL loading failed | Check DLL dependencies and path |
+| Cannot resolve DLL path | Invalid path | Check if path is correct, relative paths are supported |
+| DLL file does not exist | File not found | Confirm DLL file path is correct |
 
 ## License
 

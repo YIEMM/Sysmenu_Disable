@@ -207,6 +207,18 @@ int main(int argc, char* argv[]) {
         PrintUsage();
         return 1;
     }
+
+    char absPath[MAX_PATH];
+    if (GetFullPathNameA(dllPath.c_str(), MAX_PATH, absPath, NULL) == 0) {
+        std::cerr << "[错误] 无法解析 DLL 路径: " << GetLastError() << std::endl;
+        return 1;
+    }
+    dllPath = absPath;
+
+    if (GetFileAttributesA(dllPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        std::cerr << "[错误] DLL 文件不存在: " << dllPath << std::endl;
+        return 1;
+    }
     
     if (processName.empty() && windowTitle.empty()) {
         std::cerr << "[错误] 必须指定进程名 (-p) 或窗口标题 (-w)" << std::endl;

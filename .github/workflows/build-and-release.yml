@@ -1,0 +1,98 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_title:
+        description: 'Release title'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: false
+        type: string
+        default: 'Automated release'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build x64 Release
+        run: msbuild Sysmenu_Disable.sln /p:Configuration=Release /p:Platform=x64
+
+      - name: Build x86 Release
+        run: msbuild Sysmenu_Disable.sln /p:Configuration=Release /p:Platform=win32
+
+      - name: List output files
+        run: |
+          echo "=== x64 Release ==="
+          dir bin\x64\Release
+          echo ""
+          echo "=== x86 Release ==="
+          dir bin\x86\Release
+
+      - name: Upload x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x64-release
+          path: bin\x64\Release\
+
+      - name: Upload x86 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86-release
+          path: bin\x86\Release\
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.event.inputs.tag_name, 'v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download x64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: x64-release
+          path: ./release/x64
+
+      - name: Download x86 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: x86-release
+          path: ./release/x86
+
+      - name: Create release package
+        run: |
+          Compress-Archive -Path ./release\x64\* -DestinationPath ./Sysmenu_Disable-x64.zip
+          Compress-Archive -Path ./release\x86\* -DestinationPath ./Sysmenu_Disable-x86.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: ${{ github.event.inputs.release_title }}
+          body: ${{ github.event.inputs.release_notes }}
+          files: |
+            ./Sysmenu_Disable-x64.zip
+            ./Sysmenu_Disable-x86.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
